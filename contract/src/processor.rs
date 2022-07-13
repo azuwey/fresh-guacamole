@@ -6,14 +6,20 @@ impl Processor {
     pub fn process(_program_id: &Pubkey, _accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
         let instruction = MultiSigWalletInstruction::unpack(instruction_data)?;
         match instruction {
-            MultiSigWalletInstruction::SetOwners { ids } => {
+            MultiSigWalletInstruction::CreateWallet { owners, threshold } => {
                 msg!("Instruction: SetOwners");
-                msg!("Owner ids {:?}", ids);
+                msg!("Owners {:?}", owners);
+                msg!("Threshold {:?}", threshold);
+                Ok(())
+            },
+            MultiSigWalletInstruction::SetOwners { owners } => {
+                msg!("Instruction: SetOwners");
+                msg!("Owners {:?}", owners);
                 Ok(())
             },
             MultiSigWalletInstruction::SetThreshold { threshold } => {
                 msg!("Instruction: SetThreshold");
-                msg!("New threshold {:?}", threshold);
+                msg!("Threshold {:?}", threshold);
                 Ok(())
             }
         }

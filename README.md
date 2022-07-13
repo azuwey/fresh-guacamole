@@ -25,5 +25,5 @@ solana airdrop 1 $(solana-keygen pubkey solana-wallet/keypair.json)
 deploy
 
 ```shell
-solana program deploy -v --keypair solana-wallet/keypair.json contract/dist/fresh_guacamole.so
+npm run contract:deploy
 ```
