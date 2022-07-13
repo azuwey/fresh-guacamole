@@ -545,6 +545,8 @@ dependencies = [
 name = "fresh_guacamole"
 version = "1.0.0"
 dependencies = [
+ "borsh",
+ "borsh-derive",
  "solana-program",
  "solana-sdk",
 ]

@@ -8,6 +8,8 @@ license = "BSD-3-Clause"
 no-entrypoint = []
 
 [dependencies]
+borsh = "0.9.1"
+borsh-derive = "0.9.1"
 solana-program = "=1.7.9"
 
 [dev-dependencies]
