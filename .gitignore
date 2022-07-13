@@ -2,6 +2,7 @@
 **/dist
 **/out
 **/build
+**/target
 **/node_modules
 **/.next
 
@@ -28,3 +29,6 @@
 # envs
 .env
 .env*.local
+
+# wallet
+solana-wallet/keypair.json
