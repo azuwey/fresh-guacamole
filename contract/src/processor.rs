@@ -47,6 +47,10 @@ impl Processor {
                 msg!("Threshold {:?}", threshold);
                 msg!("Nonce {:?}", nonce);
                 Ok(())
+            },
+            MultiSigWalletInstruction::CreateTransaction { address, amount, nonce } => {
+                msg!("Instruction: CreateTransaction");
+                Self::create_transaction(program_id, accounts, address, amount, nonce)
             }
         }
     }
@@ -85,7 +89,7 @@ impl Processor {
             return Err(MultiSigWalletError::InvalidPDA.into())
         }
 
-        let account_len: usize = 1 + (4 + (owners.len() * 32)) + 8 + (4 + nonce.to_bytes().len());
+        let account_len: usize = 1 + (4 + (3 * 32)) + 8 + (4 + 32) + 1 + (4 + (3 * 32)) + (4 + 32) + 8;
         let rent = Rent::get()?;
         let rent_lamports = rent.minimum_balance(account_len);
 
@@ -112,8 +116,68 @@ impl Processor {
         account_data.owners = owners;
         account_data.threshold = threshold;
         account_data.nonce = nonce;
+        account_data.transaction.is_executed = true;
 
         account_data.serialize(&mut &mut client_program_derived_account.data.borrow_mut()[..])?;
+
+        Ok(())
+    }
+
+    fn create_transaction(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        address: Pubkey,
+        amount: u64,
+        nonce: Pubkey
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+        let initializer = next_account_info(account_info_iter)?;
+        let client_program_derived_account = next_account_info(account_info_iter)?;
+
+        if client_program_derived_account.owner != program_id {
+            msg!("PDA not owned by the program");
+            return Err(ProgramError::IllegalOwner)
+        }
+
+        if !initializer.is_signer {
+            msg!("Missing required signature");
+            return Err(ProgramError::MissingRequiredSignature)
+        }
+
+        let (program_derived_account, _bump_seed) = Pubkey::find_program_address(&[initializer.key.as_ref(), nonce.as_ref()], program_id);
+
+        if program_derived_account != *client_program_derived_account.key {
+            msg!("Invalid seeds for PDA");
+            return Err(MultiSigWalletError::InvalidPDA.into())
+        }
+
+        /* TODO: Figure out fee calculation */
+        if client_program_derived_account.lamports() <= amount {
+            msg!("PDA have insufficient balance");
+            return Err(ProgramError::InsufficientFunds)
+        }
+
+        let mut account_data = try_from_slice_unchecked::<MultiSigWalletState>(&client_program_derived_account.data.borrow()).unwrap();
+
+        if !account_data.is_initialized() {
+            msg!("Wallet not initialized");
+            return Err(MultiSigWalletError::UninitializedAccount.into());
+        }
+
+        if !account_data.owners.iter().any(|owner| owner == initializer.key) {
+            msg!("Initializer not an owner");
+            return Err(MultiSigWalletError::InvalidOwner.into());
+        }
+
+        if !account_data.transaction.is_executed {
+            msg!("Previous transaction not executed");
+            return Err(MultiSigWalletError::UnexpectedTransaction.into());
+        }
+
+        account_data.transaction.address = address;
+        account_data.transaction.amount = amount;
+        account_data.transaction.signers = Vec::new();
+        account_data.transaction.signers.append(&mut vec![initializer.key.clone()]);
 
         Ok(())
     }

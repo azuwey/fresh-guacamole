@@ -19,6 +19,11 @@ pub enum MultiSigWalletInstruction {
     SetThreshold {
         threshold: u64,
         nonce: Pubkey
+    },
+    CreateTransaction {
+        address: Pubkey,
+        amount: u64,
+        nonce: Pubkey
     }
 }
 
@@ -26,6 +31,8 @@ pub enum MultiSigWalletInstruction {
 pub struct MultiSigWalletInstructionPayload {
     owners: Vec<Pubkey>,
     threshold: u64,
+    address: Pubkey,
+    amount: u64,
     nonce: Pubkey
 }
 
@@ -46,6 +53,11 @@ impl MultiSigWalletInstruction {
             },
             2 => Self::SetThreshold {
                 threshold: payload.threshold,
+                nonce: payload.nonce
+            },
+            3 => Self::CreateTransaction {
+                address: payload.address,
+                amount: payload.amount,
                 nonce: payload.nonce
             },
             _ => return Err(ProgramError::InvalidInstructionData)

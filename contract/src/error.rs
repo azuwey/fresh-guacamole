@@ -14,6 +14,12 @@ pub enum MultiSigWalletError {
 
     #[error("Length of the owners is greater than 3 or less than 2")]
     InvalidOwnersLength,
+
+    #[error("Initializer not an owner in the wallet")]
+    InvalidOwner,
+
+    #[error("Unexpected transaction")]
+    UnexpectedTransaction,
 }
 
 impl From<MultiSigWalletError> for ProgramError {
