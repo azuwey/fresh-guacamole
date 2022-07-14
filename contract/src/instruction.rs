@@ -1,23 +1,32 @@
-use borsh::{BorshDeserialize};
-use solana_program::{program_error::ProgramError, pubkey::Pubkey};
+use borsh::{
+    BorshDeserialize
+};
+use solana_program::{
+    program_error::ProgramError,
+    pubkey::Pubkey
+};
 
 pub enum MultiSigWalletInstruction {
     CreateWallet {
         owners: Vec<Pubkey>,
-        threshold: u64
+        threshold: u64,
+        nonce: Pubkey
     },
     SetOwners {
-        owners: Vec<Pubkey>
+        owners: Vec<Pubkey>,
+        nonce: Pubkey
     },
     SetThreshold {
-        threshold: u64
+        threshold: u64,
+        nonce: Pubkey
     }
 }
 
 #[derive(BorshDeserialize)]
 pub struct MultiSigWalletInstructionPayload {
     owners: Vec<Pubkey>,
-    threshold: u64
+    threshold: u64,
+    nonce: Pubkey
 }
 
 impl MultiSigWalletInstruction {
@@ -28,13 +37,16 @@ impl MultiSigWalletInstruction {
         Ok(match instruction_variant {
             0 => Self::CreateWallet {
                 owners: payload.owners,
-                threshold: payload.threshold
+                threshold: payload.threshold,
+                nonce: payload.nonce
             },
             1 => Self::SetOwners {
-                owners: payload.owners
+                owners: payload.owners,
+                nonce: payload.nonce
             },
             2 => Self::SetThreshold {
-                threshold: payload.threshold
+                threshold: payload.threshold,
+                nonce: payload.nonce
             },
             _ => return Err(ProgramError::InvalidInstructionData)
         })
