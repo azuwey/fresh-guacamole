@@ -18,18 +18,17 @@ pub enum MultiSigWalletInstruction {
         threshold: u64
     },
     CreateTransaction {
-        address: Pubkey,
         amount: u64
     },
     ConfirmTransaction {},
-    RejectTransaction {}
+    RejectTransaction {},
+    ExecuteTransaction {}
 }
 
 #[derive(BorshDeserialize)]
 pub struct MultiSigWalletInstructionPayload {
     owners: Vec<Pubkey>,
     threshold: u64,
-    address: Pubkey,
     amount: u64
 }
 
@@ -50,11 +49,11 @@ impl MultiSigWalletInstruction {
                 threshold: payload.threshold
             },
             3 => Self::CreateTransaction {
-                address: payload.address,
                 amount: payload.amount
             },
             4 => Self::ConfirmTransaction {},
             5 => Self::RejectTransaction {},
+            6 => Self::ExecuteTransaction {},
             _ => return Err(ProgramError::InvalidInstructionData)
         })
     }

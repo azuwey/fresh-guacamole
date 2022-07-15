@@ -46,9 +46,9 @@ impl Processor {
                 msg!("Threshold {:?}", threshold);
                 Ok(())
             },
-            MultiSigWalletInstruction::CreateTransaction { address, amount } => {
+            MultiSigWalletInstruction::CreateTransaction { amount } => {
                 msg!("Instruction: CreateTransaction");
-                Self::create_transaction(program_id, accounts, address, amount)
+                Self::create_transaction(program_id, accounts, amount)
             },
             MultiSigWalletInstruction::ConfirmTransaction {} => {
                 msg!("Instruction: ConfirmTransaction");
@@ -57,6 +57,10 @@ impl Processor {
             MultiSigWalletInstruction::RejectTransaction {} => {
                 msg!("Instruction: RejectTransaction");
                 Self::reject_transaction(program_id, accounts)
+            },
+            MultiSigWalletInstruction::ExecuteTransaction {} => {
+                msg!("Instruction: ExecuteTransaction");
+                Self::execute_transaction(program_id, accounts)
             },
         }
     }
@@ -88,7 +92,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature)
         }
 
-        let (program_derived_account, bump_seed) = Pubkey::find_program_address(&[b"FreshGuacamoleMultiSigWallet".as_ref(), base.key.as_ref()], program_id);
+        let (program_derived_account, bump_seed) = Pubkey::find_program_address(&[b"MultiSigWallet".as_ref(), base.key.as_ref()], program_id);
 
         if program_derived_account != *client_program_derived_account.key {
             msg!("Invalid seeds for PDA");
@@ -108,7 +112,7 @@ impl Processor {
                 program_id,
             ),
             &[initializer.clone(), client_program_derived_account.clone(), system_program.clone()],
-            &[&[b"FreshGuacamoleMultiSigWallet".as_ref(), base.key.as_ref(), &[bump_seed]]],
+            &[&[b"MultiSigWallet".as_ref(), base.key.as_ref(), &[bump_seed]]],
         )?;
 
         let mut account_data = try_from_slice_unchecked::<MultiSigWalletState>(&client_program_derived_account.data.borrow()).unwrap();
@@ -131,13 +135,13 @@ impl Processor {
     fn create_transaction(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        address: Pubkey,
         amount: u64
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let initializer = next_account_info(account_info_iter)?;
         let base = next_account_info(account_info_iter)?;
         let client_program_derived_account = next_account_info(account_info_iter)?;
+        let to_account = next_account_info(account_info_iter)?;
 
         if client_program_derived_account.owner != program_id {
             msg!("PDA not owned by the program");
@@ -149,7 +153,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature)
         }
 
-        let (program_derived_account, _bump_seed) = Pubkey::find_program_address(&[b"FreshGuacamoleMultiSigWallet".as_ref(), base.key.as_ref()], program_id);
+        let (program_derived_account, _bump_seed) = Pubkey::find_program_address(&[b"MultiSigWallet".as_ref(), base.key.as_ref()], program_id);
 
         if program_derived_account != *client_program_derived_account.key {
             msg!("Invalid seeds for PDA");
@@ -178,7 +182,7 @@ impl Processor {
             return Err(MultiSigWalletError::UnexpectedTransaction.into());
         }
 
-        account_data.transaction.address = address;
+        account_data.transaction.to_address = *to_account.key;
         account_data.transaction.amount = amount;
         account_data.transaction.is_executed = false;
         account_data.transaction.signers = Vec::new();
@@ -209,7 +213,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature)
         }
 
-        let (program_derived_account, _bump_seed) = Pubkey::find_program_address(&[b"FreshGuacamoleMultiSigWallet".as_ref(), base.key.as_ref()], program_id);
+        let (program_derived_account, _bump_seed) = Pubkey::find_program_address(&[b"MultiSigWallet".as_ref(), base.key.as_ref()], program_id);
 
         if program_derived_account != *client_program_derived_account.key {
             msg!("Invalid seeds for PDA");
@@ -265,7 +269,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature)
         }
 
-        let (program_derived_account, _bump_seed) = Pubkey::find_program_address(&[b"FreshGuacamoleMultiSigWallet".as_ref(), base.key.as_ref()], program_id);
+        let (program_derived_account, _bump_seed) = Pubkey::find_program_address(&[b"MultiSigWallet".as_ref(), base.key.as_ref()], program_id);
 
         if program_derived_account != *client_program_derived_account.key {
             msg!("Invalid seeds for PDA");
@@ -296,6 +300,66 @@ impl Processor {
 
         account_data.transaction.signers.retain(|owner| owner != initializer.key);
         account_data.transaction.opponents.append(&mut vec![initializer.key.clone()]);
+
+        account_data.serialize(&mut &mut client_program_derived_account.data.borrow_mut()[..])?;
+
+        Ok(())
+    }
+
+    fn execute_transaction(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo]
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+        let initializer = next_account_info(account_info_iter)?;
+        let base = next_account_info(account_info_iter)?;
+        let client_program_derived_account = next_account_info(account_info_iter)?;
+        let to_account = next_account_info(account_info_iter)?;
+
+        if client_program_derived_account.owner != program_id {
+            msg!("PDA not owned by the program");
+            return Err(ProgramError::IllegalOwner)
+        }
+
+        if !initializer.is_signer {
+            msg!("Missing required signature");
+            return Err(ProgramError::MissingRequiredSignature)
+        }
+
+        let (program_derived_account, _bump_seed) = Pubkey::find_program_address(&[b"MultiSigWallet".as_ref(), base.key.as_ref()], program_id);
+
+        if program_derived_account != *client_program_derived_account.key {
+            msg!("Invalid seeds for PDA");
+            return Err(MultiSigWalletError::InvalidPDA.into())
+        }
+
+        let mut account_data = try_from_slice_unchecked::<MultiSigWalletState>(&client_program_derived_account.data.borrow()).unwrap();
+
+        if !account_data.is_initialized() {
+            msg!("Wallet not initialized");
+            return Err(MultiSigWalletError::UninitializedAccount.into());
+        }
+
+        if !account_data.owners.iter().any(|owner| owner == initializer.key) {
+            msg!("Initializer not an owner");
+            return Err(MultiSigWalletError::InvalidOwner.into());
+        }
+
+        if account_data.transaction.is_executed {
+            msg!("Transaction has been executed already");
+            return Err(MultiSigWalletError::UnexpectedInstruction.into());
+        }
+
+
+        if account_data.transaction.to_address != *to_account.key {
+            msg!("The provided address does not match with the stored address");
+            return Err(MultiSigWalletError::InvalidInstruction.into());
+        }
+
+        **client_program_derived_account.try_borrow_mut_lamports()? -= account_data.transaction.amount;
+        **to_account.try_borrow_mut_lamports()? += account_data.transaction.amount;
+
+        account_data.transaction.is_executed = true;
 
         account_data.serialize(&mut &mut client_program_derived_account.data.borrow_mut()[..])?;
 

@@ -15,7 +15,7 @@ pub struct TransactionState {
     pub is_executed: bool,
     pub signers: Vec<Pubkey>,
     pub opponents: Vec<Pubkey>,
-    pub address: Pubkey,
+    pub to_address: Pubkey,
     pub amount: u64
 }
 
