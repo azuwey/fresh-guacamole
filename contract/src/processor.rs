@@ -54,6 +54,10 @@ impl Processor {
                 msg!("Instruction: ConfirmTransaction");
                 Self::confirm_transaction(program_id, accounts)
             },
+            MultiSigWalletInstruction::RejectTransaction {} => {
+                msg!("Instruction: RejectTransaction");
+                Self::reject_transaction(program_id, accounts)
+            },
         }
     }
 
@@ -236,6 +240,62 @@ impl Processor {
 
         account_data.transaction.opponents.retain(|owner| owner != initializer.key);
         account_data.transaction.signers.append(&mut vec![initializer.key.clone()]);
+
+        account_data.serialize(&mut &mut client_program_derived_account.data.borrow_mut()[..])?;
+
+        Ok(())
+    }
+
+    fn reject_transaction(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo]
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+        let initializer = next_account_info(account_info_iter)?;
+        let base = next_account_info(account_info_iter)?;
+        let client_program_derived_account = next_account_info(account_info_iter)?;
+
+        if client_program_derived_account.owner != program_id {
+            msg!("PDA not owned by the program");
+            return Err(ProgramError::IllegalOwner)
+        }
+
+        if !initializer.is_signer {
+            msg!("Missing required signature");
+            return Err(ProgramError::MissingRequiredSignature)
+        }
+
+        let (program_derived_account, _bump_seed) = Pubkey::find_program_address(&[b"FreshGuacamoleMultiSigWallet".as_ref(), base.key.as_ref()], program_id);
+
+        if program_derived_account != *client_program_derived_account.key {
+            msg!("Invalid seeds for PDA");
+            return Err(MultiSigWalletError::InvalidPDA.into())
+        }
+
+        let mut account_data = try_from_slice_unchecked::<MultiSigWalletState>(&client_program_derived_account.data.borrow()).unwrap();
+
+        if !account_data.is_initialized() {
+            msg!("Wallet not initialized");
+            return Err(MultiSigWalletError::UninitializedAccount.into());
+        }
+
+        if !account_data.owners.iter().any(|owner| owner == initializer.key) {
+            msg!("Initializer not an owner");
+            return Err(MultiSigWalletError::InvalidOwner.into());
+        }
+
+        if account_data.transaction.is_executed {
+            msg!("Transaction has been executed already");
+            return Err(MultiSigWalletError::UnexpectedInstruction.into());
+        }
+
+        if account_data.transaction.opponents.iter().any(|owner| owner == initializer.key) {
+            msg!("Initializer already rejected the transaction");
+            return Err(MultiSigWalletError::InvalidInstruction.into());
+        }
+
+        account_data.transaction.signers.retain(|owner| owner != initializer.key);
+        account_data.transaction.opponents.append(&mut vec![initializer.key.clone()]);
 
         account_data.serialize(&mut &mut client_program_derived_account.data.borrow_mut()[..])?;
 

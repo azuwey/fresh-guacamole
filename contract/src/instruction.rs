@@ -21,7 +21,8 @@ pub enum MultiSigWalletInstruction {
         address: Pubkey,
         amount: u64
     },
-    ConfirmTransaction {}
+    ConfirmTransaction {},
+    RejectTransaction {}
 }
 
 #[derive(BorshDeserialize)]
@@ -53,6 +54,7 @@ impl MultiSigWalletInstruction {
                 amount: payload.amount
             },
             4 => Self::ConfirmTransaction {},
+            5 => Self::RejectTransaction {},
             _ => return Err(ProgramError::InvalidInstructionData)
         })
     }
