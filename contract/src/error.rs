@@ -20,6 +20,12 @@ pub enum MultiSigWalletError {
 
     #[error("Unexpected transaction")]
     UnexpectedTransaction,
+
+    #[error("Unexpected instruction")]
+    UnexpectedInstruction,
+
+    #[error("Invalid instruction")]
+    InvalidInstruction,
 }
 
 impl From<MultiSigWalletError> for ProgramError {

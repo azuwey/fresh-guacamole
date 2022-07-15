@@ -9,22 +9,19 @@ use solana_program::{
 pub enum MultiSigWalletInstruction {
     CreateWallet {
         owners: Vec<Pubkey>,
-        threshold: u64,
-        nonce: Pubkey
+        threshold: u64
     },
     SetOwners {
-        owners: Vec<Pubkey>,
-        nonce: Pubkey
+        owners: Vec<Pubkey>
     },
     SetThreshold {
-        threshold: u64,
-        nonce: Pubkey
+        threshold: u64
     },
     CreateTransaction {
         address: Pubkey,
-        amount: u64,
-        nonce: Pubkey
-    }
+        amount: u64
+    },
+    ConfirmTransaction {}
 }
 
 #[derive(BorshDeserialize)]
@@ -32,8 +29,7 @@ pub struct MultiSigWalletInstructionPayload {
     owners: Vec<Pubkey>,
     threshold: u64,
     address: Pubkey,
-    amount: u64,
-    nonce: Pubkey
+    amount: u64
 }
 
 impl MultiSigWalletInstruction {
@@ -44,22 +40,19 @@ impl MultiSigWalletInstruction {
         Ok(match instruction_variant {
             0 => Self::CreateWallet {
                 owners: payload.owners,
-                threshold: payload.threshold,
-                nonce: payload.nonce
+                threshold: payload.threshold
             },
             1 => Self::SetOwners {
-                owners: payload.owners,
-                nonce: payload.nonce
+                owners: payload.owners
             },
             2 => Self::SetThreshold {
-                threshold: payload.threshold,
-                nonce: payload.nonce
+                threshold: payload.threshold
             },
             3 => Self::CreateTransaction {
                 address: payload.address,
-                amount: payload.amount,
-                nonce: payload.nonce
+                amount: payload.amount
             },
+            4 => Self::ConfirmTransaction {},
             _ => return Err(ProgramError::InvalidInstructionData)
         })
     }

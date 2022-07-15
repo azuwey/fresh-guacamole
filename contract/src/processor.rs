@@ -32,26 +32,28 @@ impl Processor {
     pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
         let instruction = MultiSigWalletInstruction::unpack(instruction_data)?;
         match instruction {
-            MultiSigWalletInstruction::CreateWallet { owners, threshold, nonce } => {
+            MultiSigWalletInstruction::CreateWallet { owners, threshold } => {
                 msg!("Instruction: CreateWallet");
-                Self::create_wallet(program_id, accounts, owners, threshold, nonce)
+                Self::create_wallet(program_id, accounts, owners, threshold)
             },
-            MultiSigWalletInstruction::SetOwners { owners, nonce } => {
+            MultiSigWalletInstruction::SetOwners { owners } => {
                 msg!("Instruction: SetOwners");
                 msg!("Owners {:?}", owners);
-                msg!("Nonce {:?}", nonce);
                 Ok(())
             },
-            MultiSigWalletInstruction::SetThreshold { threshold, nonce } => {
+            MultiSigWalletInstruction::SetThreshold { threshold } => {
                 msg!("Instruction: SetThreshold");
                 msg!("Threshold {:?}", threshold);
-                msg!("Nonce {:?}", nonce);
                 Ok(())
             },
-            MultiSigWalletInstruction::CreateTransaction { address, amount, nonce } => {
+            MultiSigWalletInstruction::CreateTransaction { address, amount } => {
                 msg!("Instruction: CreateTransaction");
-                Self::create_transaction(program_id, accounts, address, amount, nonce)
-            }
+                Self::create_transaction(program_id, accounts, address, amount)
+            },
+            MultiSigWalletInstruction::ConfirmTransaction {} => {
+                msg!("Instruction: ConfirmTransaction");
+                Self::confirm_transaction(program_id, accounts)
+            },
         }
     }
 
@@ -59,41 +61,41 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         owners: Vec<Pubkey>,
-        threshold: u64,
-        nonce: Pubkey
+        threshold: u64
     ) -> ProgramResult {
-        if owners.len() < 2 || owners.len() > 3 {
-            msg!("Invalid owners length");
-            return Err(MultiSigWalletError::InvalidOwnersLength.into())
-        }
-
         if threshold < 2 || threshold > 3 {
             msg!("Invalid threshold");
             return Err(MultiSigWalletError::InvalidThreshold.into())
         }
 
+        if owners.len() < threshold as usize {
+            msg!("Invalid owners length");
+            return Err(MultiSigWalletError::InvalidOwnersLength.into())
+        }
+
         let account_info_iter = &mut accounts.iter();
         let initializer = next_account_info(account_info_iter)?;
+        let base = next_account_info(account_info_iter)?;
         let client_program_derived_account = next_account_info(account_info_iter)?;
         let system_program = next_account_info(account_info_iter)?;
 
-        if !initializer.is_signer {
+        if !initializer.is_signer || !base.is_signer {
             msg!("Missing required signature");
             return Err(ProgramError::MissingRequiredSignature)
         }
 
-        let (program_derived_account, bump_seed) = Pubkey::find_program_address(&[initializer.key.as_ref(), nonce.as_ref()], program_id);
+        let (program_derived_account, bump_seed) = Pubkey::find_program_address(&[b"FreshGuacamoleMultiSigWallet".as_ref(), base.key.as_ref()], program_id);
 
         if program_derived_account != *client_program_derived_account.key {
             msg!("Invalid seeds for PDA");
             return Err(MultiSigWalletError::InvalidPDA.into())
         }
 
-        let account_len: usize = 1 + (4 + (3 * 32)) + 8 + (4 + 32) + 1 + (4 + (3 * 32)) + (4 + 32) + 8;
+        let account_len: usize = 1 + (4 + (3 * 32)) + 8 + (4 + 32) + 1 + (4 + (3 * 32)) + (4 + (3 * 32)) + 8;
         let rent = Rent::get()?;
         let rent_lamports = rent.minimum_balance(account_len);
 
-        invoke_signed(
+       invoke_signed(
             &system_instruction::create_account(
                 initializer.key,
                 client_program_derived_account.key,
@@ -102,7 +104,7 @@ impl Processor {
                 program_id,
             ),
             &[initializer.clone(), client_program_derived_account.clone(), system_program.clone()],
-            &[&[initializer.key.as_ref(), nonce.as_ref(), &[bump_seed]]],
+            &[&[b"FreshGuacamoleMultiSigWallet".as_ref(), base.key.as_ref(), &[bump_seed]]],
         )?;
 
         let mut account_data = try_from_slice_unchecked::<MultiSigWalletState>(&client_program_derived_account.data.borrow()).unwrap();
@@ -115,7 +117,6 @@ impl Processor {
         account_data.is_initialized = true;
         account_data.owners = owners;
         account_data.threshold = threshold;
-        account_data.nonce = nonce;
         account_data.transaction.is_executed = true;
 
         account_data.serialize(&mut &mut client_program_derived_account.data.borrow_mut()[..])?;
@@ -127,11 +128,11 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         address: Pubkey,
-        amount: u64,
-        nonce: Pubkey
+        amount: u64
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let initializer = next_account_info(account_info_iter)?;
+        let base = next_account_info(account_info_iter)?;
         let client_program_derived_account = next_account_info(account_info_iter)?;
 
         if client_program_derived_account.owner != program_id {
@@ -144,14 +145,13 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature)
         }
 
-        let (program_derived_account, _bump_seed) = Pubkey::find_program_address(&[initializer.key.as_ref(), nonce.as_ref()], program_id);
+        let (program_derived_account, _bump_seed) = Pubkey::find_program_address(&[b"FreshGuacamoleMultiSigWallet".as_ref(), base.key.as_ref()], program_id);
 
         if program_derived_account != *client_program_derived_account.key {
             msg!("Invalid seeds for PDA");
             return Err(MultiSigWalletError::InvalidPDA.into())
         }
 
-        /* TODO: Figure out fee calculation */
         if client_program_derived_account.lamports() <= amount {
             msg!("PDA have insufficient balance");
             return Err(ProgramError::InsufficientFunds)
@@ -176,8 +176,68 @@ impl Processor {
 
         account_data.transaction.address = address;
         account_data.transaction.amount = amount;
+        account_data.transaction.is_executed = false;
         account_data.transaction.signers = Vec::new();
+        account_data.transaction.opponents = Vec::new();
         account_data.transaction.signers.append(&mut vec![initializer.key.clone()]);
+
+        account_data.serialize(&mut &mut client_program_derived_account.data.borrow_mut()[..])?;
+
+        Ok(())
+    }
+
+    fn confirm_transaction(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo]
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+        let initializer = next_account_info(account_info_iter)?;
+        let base = next_account_info(account_info_iter)?;
+        let client_program_derived_account = next_account_info(account_info_iter)?;
+
+        if client_program_derived_account.owner != program_id {
+            msg!("PDA not owned by the program");
+            return Err(ProgramError::IllegalOwner)
+        }
+
+        if !initializer.is_signer {
+            msg!("Missing required signature");
+            return Err(ProgramError::MissingRequiredSignature)
+        }
+
+        let (program_derived_account, _bump_seed) = Pubkey::find_program_address(&[b"FreshGuacamoleMultiSigWallet".as_ref(), base.key.as_ref()], program_id);
+
+        if program_derived_account != *client_program_derived_account.key {
+            msg!("Invalid seeds for PDA");
+            return Err(MultiSigWalletError::InvalidPDA.into())
+        }
+
+        let mut account_data = try_from_slice_unchecked::<MultiSigWalletState>(&client_program_derived_account.data.borrow()).unwrap();
+
+        if !account_data.is_initialized() {
+            msg!("Wallet not initialized");
+            return Err(MultiSigWalletError::UninitializedAccount.into());
+        }
+
+        if !account_data.owners.iter().any(|owner| owner == initializer.key) {
+            msg!("Initializer not an owner");
+            return Err(MultiSigWalletError::InvalidOwner.into());
+        }
+
+        if account_data.transaction.is_executed {
+            msg!("Transaction has been executed already");
+            return Err(MultiSigWalletError::UnexpectedInstruction.into());
+        }
+
+        if account_data.transaction.signers.iter().any(|owner| owner == initializer.key) {
+            msg!("Initializer already signed the transaction");
+            return Err(MultiSigWalletError::InvalidInstruction.into());
+        }
+
+        account_data.transaction.opponents.retain(|owner| owner != initializer.key);
+        account_data.transaction.signers.append(&mut vec![initializer.key.clone()]);
+
+        account_data.serialize(&mut &mut client_program_derived_account.data.borrow_mut()[..])?;
 
         Ok(())
     }
