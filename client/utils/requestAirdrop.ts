@@ -4,7 +4,7 @@ import createNewConnection from "./createNewConnection";
 export default async function requestAirdrop(walletPublicKey: PublicKey) {
   try {
     const connection = createNewConnection();
-    const airdropSignature = await connection.requestAirdrop(walletPublicKey, LAMPORTS_PER_SOL);
+    const airdropSignature = await connection.requestAirdrop(walletPublicKey, 500 * LAMPORTS_PER_SOL);
     const latestBlockHash = await connection.getLatestBlockhash();
     await connection.confirmTransaction({
       blockhash: latestBlockHash.blockhash,

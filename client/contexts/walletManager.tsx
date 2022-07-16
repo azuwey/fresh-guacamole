@@ -9,11 +9,13 @@ export interface Wallet {
   balance: number;
 }
 
-export type WalletWithoutBalance = Omit<Wallet, "balance">;
+export type WalletWithOptionalBalance = Omit<Wallet, "balance"> & {
+  balance?: Wallet['balance']
+};
 
 interface WalletManager {
   wallets: Wallet[];
-  addWallet: (wallet: WalletWithoutBalance) => void;
+  addWallet: (wallet: WalletWithOptionalBalance) => void;
   setWalletBalance: (walletIndex: number, newBalance: number) => void;
 }
 
@@ -30,11 +32,11 @@ export const WalletManagerContext = createContext<WalletManager>({
 export function WalletManagerContextProvider({ children }: PropsWithChildren<{}>) {
   const [wallets, setWallets] = useState<Wallet[]>([]);
 
-  const addWallet = (wallet: WalletWithoutBalance) =>
+  const addWallet = (wallet: WalletWithOptionalBalance) =>
     setWallets((previousWallets) => previousWallets.concat(
       {
         ...wallet,
-        balance: DEFAULT_BALANCE,
+        balance: wallet.balance ?? DEFAULT_BALANCE,
       }
     ));
 

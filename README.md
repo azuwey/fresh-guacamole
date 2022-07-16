@@ -19,7 +19,7 @@ solana-keygen new --outfile solana-wallet/keypair.json
 Airdrop funds
 
 ```shell
-solana airdrop 1 $(solana-keygen pubkey solana-wallet/keypair.json)
+solana airdrop 500 $(solana-keygen pubkey solana-wallet/keypair.json)
 ```
 
 deploy
