@@ -13,10 +13,13 @@ use borsh::{
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct TransactionState {
     pub is_executed: bool,
+    pub variant: u8,
     pub signers: Vec<Pubkey>,
     pub opponents: Vec<Pubkey>,
     pub to_address: Pubkey,
-    pub amount: u64
+    pub amount: u64,
+    pub owners: Vec<Pubkey>,
+    pub threshold: u64
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]

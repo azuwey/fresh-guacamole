@@ -26,6 +26,9 @@ pub enum MultiSigWalletError {
 
     #[error("Invalid instruction")]
     InvalidInstruction,
+
+    #[error("Not enough approvals")]
+    NotEnoughApprovals,
 }
 
 impl From<MultiSigWalletError> for ProgramError {

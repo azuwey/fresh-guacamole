@@ -11,25 +11,24 @@ pub enum MultiSigWalletInstruction {
         owners: Vec<Pubkey>,
         threshold: u64
     },
-    SetOwners {
-        owners: Vec<Pubkey>
-    },
-    SetThreshold {
-        threshold: u64
-    },
     CreateTransaction {
-        amount: u64
+        variant: u8,
+        amount: u64,
+        owners: Vec<Pubkey>,
+        threshold: u64
     },
     ConfirmTransaction {},
     RejectTransaction {},
-    ExecuteTransaction {}
+    ExecuteTransaction {},
+    CancelTransaction {}
 }
 
 #[derive(BorshDeserialize)]
 pub struct MultiSigWalletInstructionPayload {
+    variant: u8,
+    amount: u64,
     owners: Vec<Pubkey>,
-    threshold: u64,
-    amount: u64
+    threshold: u64
 }
 
 impl MultiSigWalletInstruction {
@@ -42,18 +41,16 @@ impl MultiSigWalletInstruction {
                 owners: payload.owners,
                 threshold: payload.threshold
             },
-            1 => Self::SetOwners {
-                owners: payload.owners
-            },
-            2 => Self::SetThreshold {
+            1 => Self::CreateTransaction {
+                variant: payload.variant,
+                amount: payload.amount,
+                owners: payload.owners,
                 threshold: payload.threshold
             },
-            3 => Self::CreateTransaction {
-                amount: payload.amount
-            },
-            4 => Self::ConfirmTransaction {},
-            5 => Self::RejectTransaction {},
-            6 => Self::ExecuteTransaction {},
+            2 => Self::ConfirmTransaction {},
+            3 => Self::RejectTransaction {},
+            4 => Self::ExecuteTransaction {},
+            5 => Self::CancelTransaction {},
             _ => return Err(ProgramError::InvalidInstructionData)
         })
     }
