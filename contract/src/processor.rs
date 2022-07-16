@@ -160,11 +160,6 @@ impl Processor {
             return Err(MultiSigWalletError::InvalidPDA.into())
         }
 
-        if client_program_derived_account.lamports() <= amount {
-            msg!("PDA has insufficient funds");
-            return Err(ProgramError::InsufficientFunds)
-        }
-
         let mut account_data = try_from_slice_unchecked::<MultiSigWalletState>(&client_program_derived_account.data.borrow()).unwrap();
 
         if !account_data.is_initialized() {
@@ -232,6 +227,16 @@ impl Processor {
         to_account: &AccountInfo,
         amount: u64
     ) -> ProgramResult {
+        if amount <= 0 {
+            msg!("Amount needs to be higher than 0");
+            return Err(ProgramError::InvalidInstructionData)
+        }
+
+        if client_program_derived_account.lamports() <= amount {
+            msg!("PDA has insufficient funds");
+            return Err(ProgramError::InsufficientFunds)
+        }
+
         if *to_account.key == *client_program_derived_account.key {
             msg!("Cannot send to Self");
             return Err(ProgramError::InvalidInstructionData)

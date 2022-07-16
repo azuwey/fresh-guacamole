@@ -1,6 +1,6 @@
 enum TransactionVariant {
-  ChangeOwners,
-  ChangeThreshold,
+  SetOwners,
+  SetThreshold,
   Send,
 }
 

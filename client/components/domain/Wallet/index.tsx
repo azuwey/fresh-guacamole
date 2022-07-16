@@ -1,8 +1,7 @@
-import React, {useContext, useState} from "react";
+import React, { useContext, useState } from "react";
 import { ContractManagerContext } from "../../../contexts/contractManager";
-import { WalletManagerContext } from "../../../contexts/walletManager";
+import { Wallet as WalletContent, WalletManagerContext } from "../../../contexts/walletManager";
 import createOrRestoreWalletWithoutBalance from "../../../utils/createOrRestoreWalletWithoutBalance";
-import getWalletBalance from "../../../utils/getWalletBalance";
 import Button from "../../Button";
 import Input from "../../Input";
 import WalletDetails from "./WalletDetails";
@@ -12,47 +11,46 @@ interface Props {
 }
 
 export default function Wallet({ index }: Props) {
-  const [contract, setContract] = useContext(ContractManagerContext);
-  const { wallets, addWallet } = useContext(WalletManagerContext);
-  const [mnemonic, setMnemonic] = useState('');
+  const { contractState, setOwners } = useContext(ContractManagerContext);
+  const { createWallet, refreshBalance } = useContext(WalletManagerContext);
+  const [mnemonic, setMnemonic] = useState("");
+  const [wallet, setWallet] = useState<WalletContent | null>(null);
 
   const handleGenerateWallet = () => {
-    const newWallet = createOrRestoreWalletWithoutBalance();
-    addWallet(newWallet);
-    if (contract.programId === null) {
-      setContract((prevState) => ({
-        ...prevState,
-        owners: prevState.owners.concat(newWallet.keypair.publicKey.toString()),
-      }));
+    const newWallet = createWallet(createOrRestoreWalletWithoutBalance());
+    if (contractState.mnemonic === "") {
+      setOwners(newWallet.keypair, contractState.ownerPublicKeyStrings.concat(newWallet.keypair.publicKey.toString()));
     }
+    setWallet(newWallet);
   };
 
-  const handleRestoreWallet = async () => {
-    const newWallet = createOrRestoreWalletWithoutBalance(mnemonic);
-    const balance = await getWalletBalance(newWallet.keypair.publicKey);
-    addWallet({ ...newWallet, balance });
+  const handleRestoreWallet = () => {
+    const newWallet = createWallet(createOrRestoreWalletWithoutBalance(mnemonic));
+    if (contractState.mnemonic === "") {
+      setOwners(newWallet.keypair, contractState.ownerPublicKeyStrings.concat(newWallet.keypair.publicKey.toString()));
+    }
+    setWallet(newWallet);
+    void refreshBalance(index);
   };
 
   return (
     <div className="h-40 overflow-hidden px-2">
       <span className="text-xl font-semibold">{`Wallet #${index + 1}`}</span>
       <div className="py-4">
-        {!wallets?.[index] ? (
-          <>
-            <div className="flex items-center py-4 gap-2">
-              <p className="inline font-normal text-sm text-gray-600">Mnemonic:</p>
-              <Input
-                placeholder="Mnemonic"
-                value={mnemonic}
-                onChange={(e) => setMnemonic(e.target.value )}
-              />
-              {mnemonic.length === 0 ? (
-                <Button label="Create wallet" onClick={handleGenerateWallet} />
-              ) : (
-                <Button label="Restore wallet" onClick={handleRestoreWallet} />
-              )}
-            </div>
-          </>
+        {!wallet ? (
+          <div className="flex items-center py-4 gap-2">
+            <p className="inline font-normal text-sm text-gray-600">Mnemonic:</p>
+            <Input
+              placeholder="Mnemonic"
+              value={mnemonic}
+              onChange={(e) => setMnemonic(e.target.value )}
+            />
+            {mnemonic.length === 0 ? (
+              <Button label="Create wallet" onClick={handleGenerateWallet} />
+            ) : (
+              <Button label="Restore wallet" onClick={handleRestoreWallet} />
+            )}
+          </div>
         ): (
           <WalletDetails index={index} />
         )}

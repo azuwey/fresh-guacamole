@@ -1,10 +1,10 @@
-import { PublicKey } from "@solana/web3.js";
-import { Layout as layout, publicKey, struct, u64, u8, vec } from "@project-serum/borsh";
 import BN from "bn.js";
+import { PublicKey } from "@solana/web3.js";
+import { Layout, publicKey, struct, u64, u8, vec } from "@project-serum/borsh";
 import InstructionVariant from "./instructionsVariants";
 import TransactionVariant from "./transactionVariant";
 
-export interface Layout {
+export interface InstructionData {
   id: InstructionVariant,
   amount?: number,
   owners?: PublicKey[],
@@ -12,7 +12,7 @@ export interface Layout {
   variant?: TransactionVariant,
 }
 
-const LAYOUT: layout<Omit<Required<Layout>, 'threshold' | 'amount'> & {
+const LAYOUT: Layout<Omit<Required<InstructionData>, 'threshold' | 'amount'> & {
   threshold: BN,
   amount: BN,
 }> = struct([
@@ -23,13 +23,13 @@ const LAYOUT: layout<Omit<Required<Layout>, 'threshold' | 'amount'> & {
   u64("threshold"),
 ]);
 
-export default function createData({
+export default function encodeInstructionData({
   id,
   owners,
   threshold,
   amount,
   variant,
-}: Layout)  {
+}: InstructionData)  {
   let data = Buffer.alloc(1000);
   LAYOUT.encode(
     {
