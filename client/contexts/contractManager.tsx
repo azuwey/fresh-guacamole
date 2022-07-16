@@ -55,7 +55,7 @@ export interface ContractManager {
   send: (signer: Keypair, to: PublicKey, amount: number) => void;
   confirmTransaction: (signer: Keypair) => void;
   rejectTransaction: (signer: Keypair) => void;
-  executeTransaction: (signer: Keypair, to: PublicKey) => void;
+  executeTransaction: (signer: Keypair) => void;
   cancelTransaction: (signer: Keypair) => void;
   refreshBalance: () => void;
   requestAirdrop: () => void;
@@ -206,6 +206,7 @@ export function ContractManagerContextProvider({ children, connectionManager }: 
       signer: { pubkey: signer.publicKey },
       base: { pubkey: contract.baseKeypair.publicKey },
       pda: { pubkey: contract.pda },
+      to: { pubkey: contract.pda },
     }, [signer]);
 
     setContract((prevState) => ({
@@ -228,6 +229,7 @@ export function ContractManagerContextProvider({ children, connectionManager }: 
       signer: { pubkey: signer.publicKey },
       base: { pubkey: contract.baseKeypair.publicKey },
       pda: { pubkey: contract.pda },
+      to: { pubkey: contract.pda },
     }, [signer]);
 
     setContract((prevState) => ({

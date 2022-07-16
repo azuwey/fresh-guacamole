@@ -63,7 +63,7 @@ export default function WalletDetails({ index }: Props) {
                   <Button label="Send SOL" onClick={() => send(keypair, new PublicKey(toAddress), amount * LAMPORTS_PER_SOL)} />
                 </>
               )}
-              {contractState.transactionDetails !== null && contractState.balance > 0 && balance > 0 && (
+              {contractState.transactionDetails !== null && balance > 0 && (
                 <>
                   {!contractState.transactionDetails.signerPublicKeyStrings.includes(publicKeyString) && (
                     <Button label="Confirm transaction" onClick={() => confirmTransaction(keypair)} />
@@ -71,7 +71,9 @@ export default function WalletDetails({ index }: Props) {
                   {!contractState.transactionDetails.opponentPublicKeyStrings.includes(publicKeyString) && (
                     <Button label="Reject transaction" onClick={() => rejectTransaction(keypair)} />
                   )}
-                  <Button label="Execute transaction" onClick={() => executeTransaction(keypair, new PublicKey(toAddress))} />
+                  {contractState.transactionDetails.signerPublicKeyStrings.length >= contractState.threshold && (
+                    <Button label="Execute transaction" onClick={() => executeTransaction(keypair)} />
+                  )}
                   <Button label="Cancel transaction" onClick={() => cancelTransaction(keypair)} />
                 </>
               )}
@@ -87,7 +89,7 @@ export default function WalletDetails({ index }: Props) {
               <Button label="Request airdrop" onClick={() => requestAirdrop(index)} />
             </>
           )}
-          {index !== 0 && (
+          {index !== 0 && !wallets[index].tx && contractState.tx === '' && (
             contractState.ownerPublicKeyStrings.includes(publicKeyString) ? (
               <Button
                 label="Remove wallet as owner"

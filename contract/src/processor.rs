@@ -179,6 +179,7 @@ impl Processor {
 
         account_data.transaction.is_executed = false;
         account_data.transaction.signers.append(&mut vec![initializer.key.clone()]);
+        account_data.transaction.to_address = *to_account.key;
         account_data.transaction.variant = variant;
 
         match account_data.transaction.variant {
@@ -242,7 +243,6 @@ impl Processor {
             return Err(ProgramError::InvalidInstructionData)
         }
 
-        account_data.transaction.to_address = *to_account.key;
         account_data.transaction.amount = amount;
         account_data.serialize(&mut &mut client_program_derived_account.data.borrow_mut()[..])?;
 

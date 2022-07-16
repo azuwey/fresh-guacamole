@@ -12,7 +12,7 @@ interface Props {
 
 export default function Wallet({ index }: Props) {
   const { contractState, setOwners } = useContext(ContractManagerContext);
-  const { createWallet, refreshBalance } = useContext(WalletManagerContext);
+  const { wallets, createWallet, refreshBalance } = useContext(WalletManagerContext);
   const [mnemonic, setMnemonic] = useState("");
   const [wallet, setWallet] = useState<WalletContent | null>(null);
 
@@ -45,10 +45,12 @@ export default function Wallet({ index }: Props) {
               value={mnemonic}
               onChange={(e) => setMnemonic(e.target.value )}
             />
-            {mnemonic.length === 0 ? (
-              <Button label="Create wallet" onClick={handleGenerateWallet} />
-            ) : (
-              <Button label="Restore wallet" onClick={handleRestoreWallet} />
+            {(index === 0 || wallets[index - 1]) && (
+              (mnemonic.length === 0 ? (
+                <Button label="Create wallet" onClick={handleGenerateWallet} />
+              ) : (
+                <Button label="Restore wallet" onClick={handleRestoreWallet} />
+              ))
             )}
           </div>
         ): (
